@@ -1,0 +1,172 @@
+@model EditBookViewModel
+
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<link rel="stylesheet" href="~/css/edit-book.css" asp-append-version="true" />
+
+<div class="book-details-container">
+    <h1>Редактирование книги</h1>
+
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post" id="editForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="AuthorsJson" id="AuthorsJson" />
+
+        <div class="form-group">
+            <label asp-for="Name">Название</label>
+            <input asp-for="Name" class="form-control" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="YearPublished">Год издания</label>
+            <input asp-for="YearPublished" class="form-control" type="number" />
+            <span asp-validation-for="YearPublished" class="text-danger"></span>
+        </div>
+
+        <hr />
+
+        <h3>Авторы</h3>
+
+        <div class="author-add-form">
+            <input type="text" id="newLastName" placeholder="Фамилия" class="author-input" />
+            <input type="text" id="newFirstName" placeholder="Имя" class="author-input" />
+            <input type="text" id="newMiddleName" placeholder="Отчество" class="author-input" />
+            <button type="button" id="btnAddAuthor" class="btn-add-author-small">+ Добавить</button>
+        </div>
+
+        <ul id="authorsList" class="authors-list"></ul>
+
+        <hr />
+
+        <h3>Оглавление (редактор)</h3>
+        <div class="form-group">
+            <label>Оглавление</label>
+            <textarea asp-for="TableOfContentsHtml" id="TableOfContentsHtml" class="xml-textarea" spellcheck="false"></textarea>
+            <small style="color:#666;">При сохранении содержимое конвертируется в XML.</small>
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="btn-save">Сохранить</button>
+            <a href="@Url.Action("Index")" class="btn-back">Отмена</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    const authorsJsonInput = document.getElementById('AuthorsJson');
+    const authorsList = document.getElementById('authorsList');
+    const newLastName = document.getElementById('newLastName');
+    const newFirstName = document.getElementById('newFirstName');
+    const newMiddleName = document.getElementById('newMiddleName');
+    const btnAddAuthor = document.getElementById('btnAddAuthor');
+
+    if (!authorsJsonInput || !authorsList) {
+        console.error('Не найдены элементы AuthorsJson или authorsList. Проверьте разметку.');
+    } else {
+        let authors = [];
+
+        try {
+            const raw = JSON.parse(authorsJsonInput.value);
+            authors = raw.map(a => ({
+                firstName: a.firstName || a.FirstName || '',
+                lastName: a.lastName || a.LastName || '',
+                middleName: a.middleName || a.MiddleName || ''
+            }));
+            console.log('Загружено авторов:', authors.length);
+        } catch (e) {
+            console.error('Ошибка парсинга AuthorsJson', e);
+            authors = [];
+        }
+
+        function renderAuthors() {
+            authorsList.innerHTML = '';
+
+            if (authors.length === 0) {
+                authorsList.innerHTML = '<li style="color:#999; font-style:italic;">Авторов нет</li>';
+                return;
+            }
+
+            authors.forEach((author, index) => {
+                const li = document.createElement('li');
+                li.className = 'author-item';
+                const fullName = `${author.lastName} ${author.firstName} ${author.middleName ? author.middleName : ''}`.trim();
+
+                const escapedName = fullName
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+
+                li.innerHTML = `
+                        <span class="author-name">${escapedName}</span>
+                        <button type="button" class="btn-remove-author" data-index="${index}">×</button>
+                    `;
+                authorsList.appendChild(li);
+            });
+
+            document.querySelectorAll('.btn-remove-author').forEach(btn => {
+                btn.onclick = null;
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.getAttribute('data-index'), 10);
+                    if (idx >= 0 && idx < authors.length) {
+                        authors.splice(idx, 1);
+                        saveAuthorsToJson();
+                        renderAuthors();
+                    }
+                });
+            });
+        }
+
+        function saveAuthorsToJson() {
+            authorsJsonInput.value = JSON.stringify(authors);
+        }
+
+        btnAddAuthor.addEventListener('click', () => {
+            const ln = newLastName.value.trim();
+            const fn = newFirstName.value.trim();
+            const mn = newMiddleName.value.trim();
+
+            if (!ln && !fn) {
+                alert('Укажите хотя бы фамилию или имя');
+                return;
+            }
+
+            authors.push({ firstName: fn, lastName: ln, middleName: mn });
+            saveAuthorsToJson();
+            renderAuthors();
+
+            newLastName.value = '';
+            newFirstName.value = '';
+            newMiddleName.value = '';
+        });
+
+        renderAuthors();
+    }
+</script>
+
+
+<!-- TinyMCE -->
+<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+    tinymce.init({
+        selector: '#TableOfContentsHtml',
+        height: 400,
+        plugins: 'lists link image table code',
+        toolbar: 'undo redo | bold italic underline | bullist numlist | link | code',
+        menubar: false
+    });
+
+    document.getElementById('editForm').addEventListener('submit', function() {
+        if (typeof tinymce !== 'undefined') {
+            tinymce.triggerSave();
+        }
+    });
+</script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

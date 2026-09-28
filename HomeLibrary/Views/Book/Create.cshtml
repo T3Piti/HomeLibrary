@@ -1,0 +1,100 @@
+@model Book
+
+@{
+    ViewData["Title"] = "Добавить книгу";
+}
+
+<link rel="stylesheet" href="~/css/create-book.css" asp-append-version="true" />
+
+<div class="create-card">
+    <h2>@ViewData["Title"]</h2>
+
+    <form asp-action="Create" method="post" enctype="multipart/form-data">
+        <div asp-validation-summary="ModelOnly" class="text-danger" style="margin-bottom:1rem;"></div>
+
+        <!-- 1. Название книги -->
+        <div style="margin-bottom: 1rem;">
+            <label asp-for="Name" style="display:block; margin-bottom:0.3rem; font-weight:600;">Название книги</label>
+            <input asp-for="Name" class="form-control" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+
+        <!-- 2. Оглавление (XML файл) -->
+        <div style="margin-bottom: 1rem;">
+            <label style="display:block; margin-bottom:0.3rem; font-weight:600;">Оглавление (XML файл)</label>
+            <input type="file" name="tocFile" accept=".xml" class="form-control" />
+            <small style="color:#666;">Загрузите файл оглавления в формате XML.</small>
+        </div>
+
+        <!-- 3. Авторы (Динамические блоки) -->
+        <div id="authors-container" class="authors-container">
+            <h4>Авторы</h4>
+
+            @if (Model.Authors != null && Model.Authors.Any())
+            {
+                @for (int i = 0; i < Model.Authors.Count; i++)
+                {
+                    <div class="author-block">
+                        <button type="button" class="btn-remove-author" onclick="removeAuthor(this)">×</button>
+                        <div class="author-inputs">
+                            <div>
+                                <label>Имя</label>
+                                <input name="Authors[@i].FirstName" value="@Model.Authors[i].FirstName" class="form-control" required />
+                            </div>
+                            <div>
+                                <label>Фамилия</label>
+                                <input name="Authors[@i].MiddleName" value="@Model.Authors[i].MiddleName" class="form-control" required />
+                            </div>
+                            <div>
+                                <label>Отчество</label>
+                                <input name="Authors[@i].LastName" value="@Model.Authors[i].LastName" class="form-control" placeholder="необязательно" />
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="author-block">
+                    <div class="author-inputs">
+                        <div>
+                            <label>Имя</label>
+                            <input name="Authors[0].FirstName" class="form-control" required />
+                        </div>
+                        <div>
+                            <label>Фамилия</label>
+                            <input name="Authors[0].MiddleName" class="form-control" required />
+                        </div>
+                        <div>
+                            <label>Отчество</label>
+                            <input name="Authors[0].LastName" class="form-control" placeholder="необязательно" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <button type="button" onclick="addAuthor()" class="btn-add-author">+ Добавить автора</button>
+
+        <!-- 4. Год издания -->
+        <div style="margin-bottom: 1rem;">
+            <label asp-for="YearPublished" style="display:block; margin-bottom:0.3rem; font-weight:600;">Год издания</label>
+            <input asp-for="YearPublished" type="number" class="form-control" min="1000" max="2100" />
+            <span asp-validation-for="YearPublished" class="text-danger"></span>
+        </div>
+
+        <button type="submit" class="btn-submit">Сохранить книгу</button>
+    </form>
+
+    <p style="margin-top: 1rem;">
+        <a asp-action="Index">← Вернуться к списку</a>
+    </p>
+</div>
+
+<script src="~/js/create-book.js" asp-append-version="true"></script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
