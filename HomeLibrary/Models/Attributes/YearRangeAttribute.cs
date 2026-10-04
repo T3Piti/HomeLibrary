@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace HomeLibrary.Attributes
+namespace HomeLibrary.Models.Attributes
 {
   public class YearRangeAttribute : ValidationAttribute
   {
@@ -11,6 +11,9 @@ namespace HomeLibrary.Attributes
 
     protected override ValidationResult IsValid(object value, ValidationContext validationContext)
     {
+      if (value == null)
+        return new ValidationResult("Год должен быть заполнен");
+
       if (value is int year)
       {
         int currentYear = DateTime.Now.Year;
@@ -19,6 +22,7 @@ namespace HomeLibrary.Attributes
           return new ValidationResult($"Год должен быть от {_minYear} до {currentYear}.");
         }
       }
+
       return ValidationResult.Success;
     }
   }

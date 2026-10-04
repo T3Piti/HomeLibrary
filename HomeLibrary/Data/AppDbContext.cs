@@ -1,9 +1,10 @@
-﻿using HomeLibrary.Models.Dto;
+﻿using HomeLibrary.Models.DTO;
+using HomeLibrary.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Text;
 
-namespace HomeLibrary.ApplicationContext
+namespace HomeLibrary.Data
 {
   public class AppDbContext : DbContext
   {

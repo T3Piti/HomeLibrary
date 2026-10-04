@@ -1,7 +1,4 @@
-﻿using HomeLibrary.Attributes;
-using System.ComponentModel.DataAnnotations;
-
-namespace HomeLibrary.Models.Dto
+﻿namespace HomeLibrary.Models.DTO
 {
   public class BookIdResult
   {

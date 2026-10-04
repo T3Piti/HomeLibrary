@@ -1,4 +1,4 @@
-﻿namespace HomeLibrary.Models.Dto
+﻿namespace HomeLibrary.Models.DTO
 {
   public class BookWithAuthorsRow
   {

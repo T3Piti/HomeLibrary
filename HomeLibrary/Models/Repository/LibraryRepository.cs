@@ -1,5 +1,7 @@
-﻿using HomeLibrary.ApplicationContext;
-using HomeLibrary.Models.Dto;
+﻿using HomeLibrary.Data;
+using HomeLibrary.Models.DTO;
+using HomeLibrary.Models.Entities;
+using HomeLibrary.Models.ViewModels;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -85,6 +87,21 @@ namespace HomeLibrary.Models.Repository
       return books;
     }
 
+    public async Task<IEnumerable<Book>> GetByAuthorOrNameAsync(string? searchString)
+    {
+
+      var rows = await _context.Set<BookWithAuthorsRow>()
+        .FromSqlRaw("EXEC dbo.FindBooksByAuthorOrName @SearchString",
+          new SqlParameter("SearchString", (object?)searchString ?? (object?)DBNull.Value))
+        .AsNoTracking()
+        .ToListAsync();
+
+      // Группируем плоский результат в книги с коллекцией авторов
+      var books = MapRowsToBooks(rows);
+
+      return books;
+    }
+
     public async Task<Book> GetAsync(int id)
     {
       var param = new SqlParameter("@Id", SqlDbType.Int) { Value = id };
@@ -96,33 +113,29 @@ namespace HomeLibrary.Models.Repository
 
     }
 
-    public async Task UpdateAsync(EditBookViewModel model)
+    public async Task UpdateAsync(Book book)
     {
-      var authors = string.IsNullOrWhiteSpace(model.AuthorsJson)
-          ? new List<AuthorInput>()
-          : JsonSerializer.Deserialize<List<AuthorInput>>(model.AuthorsJson, JsonOpts) ?? new List<AuthorInput>();
-
       var parameters = new List<SqlParameter>
-    {
-        new SqlParameter("@Id", SqlDbType.Int) { Value = model.Id },
-        new SqlParameter("@Name", SqlDbType.NVarChar, 200) { Value = model.Name ?? (object)DBNull.Value },
-        new SqlParameter("@YearPublished", SqlDbType.Int) { Value = model.YearPublished ?? (object)DBNull.Value },
-        new SqlParameter("@TableOfContentsXml", SqlDbType.VarBinary)
-        {
-            Value = string.IsNullOrEmpty(model.TableOfContentsXml)
-                ? (object)DBNull.Value
-                : Encoding.UTF8.GetBytes(model.TableOfContentsXml)
-        }
-    };
+      {
+          new SqlParameter("@Id", SqlDbType.Int) { Value = book.Id },
+          new SqlParameter("@Name", SqlDbType.NVarChar, 200) { Value = book.Name ?? (object)DBNull.Value },
+          new SqlParameter("@YearPublished", SqlDbType.Int) { Value = book.YearPublished ?? (object)DBNull.Value },
+          new SqlParameter("@TableOfContentsXml", SqlDbType.VarBinary)
+          {
+              Value = string.IsNullOrEmpty(book.TableOfContentsXml)
+                  ? (object)DBNull.Value
+                  : Encoding.UTF8.GetBytes(book.TableOfContentsXml)
+          }
+      };
 
       var authorsTable = new DataTable();
+      authorsTable.Columns.Add("MiddleName", typeof(string));
       authorsTable.Columns.Add("FirstName", typeof(string));
       authorsTable.Columns.Add("LastName", typeof(string));
-      authorsTable.Columns.Add("MiddleName", typeof(string));
 
-      foreach (var a in authors)
+      foreach (var author in book.Authors)
       {
-        authorsTable.Rows.Add(a.FirstName, a.LastName, a.MiddleName ?? string.Empty);
+        authorsTable.Rows.Add(author.MiddleName, author.FirstName, author.LastName ?? string.Empty);
       }
 
       parameters.Add(new SqlParameter("@Authors", SqlDbType.Structured)

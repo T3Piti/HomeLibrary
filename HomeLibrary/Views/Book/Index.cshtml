@@ -2,13 +2,33 @@
 
 @{
     ViewData["Title"] = "Список книг";
+    var searchString = Context.Request.Query["searchString"];
 }
 
 <link href="~/css/index-book.css" rel="stylesheet" />
 
 <h1>@ViewData["Title"]</h1>
 
-<button type="button" class="btn-add-book" onclick="window.location.href='@Url.Action("Create")'">+ Добавить книгу</button>
+<!-- Форма поиска -->
+<form asp-action="Index" method="get" class="search-form">
+    <div class="search-group">
+        <input type="text"
+               name="searchString"
+               id="searchString"
+               class="search-input"
+               placeholder="Поиск по названию книги или ФИО автора..."
+               value="@searchString" />
+        <button type="submit" class="btn-search">Найти</button>
+        @if (!string.IsNullOrEmpty(searchString))
+        {
+            <a asp-action="Index" class="btn-clear">Очистить</a>
+        }
+    </div>
+</form>
+
+<button type="button" class="btn-add-book" onclick="window.location.href='@Url.Action("Create")'">
+    + Добавить книгу
+</button>
 
 @if (!Model.Any())
 {
@@ -41,7 +61,7 @@ else
                             @foreach (var author in book.Authors)
                             {
                                 <span class="author-name">
-                                    @author.LastName @author.FirstName @(string.IsNullOrEmpty(author.MiddleName) ? "" : $" {author.MiddleName}")
+                                    @author.MiddleName @author.FirstName @(string.IsNullOrEmpty(author.LastName) ? "" : $" {author.LastName}")
                                 </span>
                                 @if (author != book.Authors.Last())
                                 {

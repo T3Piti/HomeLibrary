@@ -1,13 +1,12 @@
-﻿using HomeLibrary.Attributes;
+﻿using HomeLibrary.Models.Attributes;
 using System.ComponentModel.DataAnnotations;
 
-namespace HomeLibrary.Models.Dto
+namespace HomeLibrary.Models.Entities
 {
   public class Book
   {
     public int Id { get; set; }
 
-    //[Required(ErrorMessage = "Укажите автора")]
     [StringLength(200)]
     public string Name { get; set; }
 
@@ -16,7 +15,6 @@ namespace HomeLibrary.Models.Dto
     [YearRange(0, ErrorMessage = "Укажите корректный год издания.")]
     public int? YearPublished { get; set; }
 
-    //[Required(ErrorMessage = "Укажите автора")]
     public IList<Author> Authors { get; set; }
   }
 }

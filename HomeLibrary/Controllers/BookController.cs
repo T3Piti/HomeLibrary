@@ -1,6 +1,7 @@
 using HomeLibrary.Models;
-using HomeLibrary.Models.Dto;
+using HomeLibrary.Models.Entities;
 using HomeLibrary.Models.Repository;
+using HomeLibrary.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
@@ -18,9 +19,9 @@ namespace HomeLibrary.Controllers
 
     // GET: /books
     [HttpGet("")]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? searchString)
     {
-      var books = await _libraryRepository.GetAllAsync();
+      var books = await _libraryRepository.GetByAuthorOrNameAsync(searchString);
       return View(books);
     }
 
@@ -32,15 +33,13 @@ namespace HomeLibrary.Controllers
       if (book == null)
         return NotFound();
 
-      var authors = book.Authors?
-          .Select(a => new AuthorInput
-          {
-            FirstName = a.FirstName,
-            LastName = a.LastName,
-            MiddleName = a.MiddleName ?? string.Empty
-          })
-          .ToList() ?? new List<AuthorInput>();
+      var viewModel = MapBookToEditViewModel(book);
 
+      return View(viewModel);
+    }
+
+    private static EditBookViewModel MapBookToEditViewModel(Book book)
+    {
       var viewModel = new EditBookViewModel
       {
         Id = book.Id,
@@ -49,31 +48,39 @@ namespace HomeLibrary.Controllers
         TableOfContentsXml = book.TableOfContentsXml ?? string.Empty,
         // XML → HTML для редактора
         TableOfContentsHtml = TocConverter.XmlToHtml(book.TableOfContentsXml),
-        AuthorsJson = JsonSerializer.Serialize(authors, new JsonSerializerOptions
-        {
-          PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        })
       };
 
-      return View(viewModel);
+      if (book.Authors != null)
+        viewModel.Authors = new List<AuthorInput>();
+
+      foreach (var author in book.Authors)
+      {
+        var vmAuthor = new AuthorInput()
+        {
+          FirstName = author.FirstName,
+          MiddleName = author.MiddleName,
+          LastName = author.LastName,
+        };
+        viewModel.Authors.Add(vmAuthor);
+      }
+
+      return viewModel;
     }
 
     // GET: /books/create
     [HttpGet("create")]
     public IActionResult Create()
     {
-      return View(new Book { Authors = new List<Author>() });
+      return View(new CreateBookViewModel { Authors = new List<AuthorInput>() });
     }
 
     [HttpPost("create")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Book book, IFormFile? tocFile)
+    public async Task<IActionResult> Create(CreateBookViewModel viewModel)
     {
-      if (tocFile != null && tocFile.Length > 0)
-      {
-        using var reader = new StreamReader(tocFile.OpenReadStream());
-        book.TableOfContentsXml = await reader.ReadToEndAsync();
-      }
+      if (!ModelState.IsValid)
+        return View(viewModel);
+      var book = await MapCreateBookViewModelToBook(viewModel);
 
       await _libraryRepository.AddAsync(book);
       return RedirectToAction(nameof(Index));
@@ -82,18 +89,17 @@ namespace HomeLibrary.Controllers
     // POST: /books/5/edit — сохранение из карточки
     [HttpPost("{id:int}/edit")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, EditBookViewModel vm)
+    public async Task<IActionResult> Edit(int id, EditBookViewModel viewModel)
     {
-      if (id != vm.Id)
+      if (id != viewModel.Id)
         return BadRequest();
 
       if (!ModelState.IsValid)
-        return View("Details", vm);
+        return View("Details", viewModel);
 
-      // HTML из редактора → XML для БД
-      vm.TableOfContentsXml = TocConverter.HtmlToXml(vm.TableOfContentsHtml ?? string.Empty);
+      var book = MapEditBookViewModelToBook(viewModel);
 
-      await _libraryRepository.UpdateAsync(vm);
+      await _libraryRepository.UpdateAsync(book);
       return RedirectToAction(nameof(Index));
     }
 
@@ -105,5 +111,63 @@ namespace HomeLibrary.Controllers
       await _libraryRepository.DeleteAsync(id);
       return RedirectToAction(nameof(Index));
     }
+
+    #region Private methods
+
+    private static Book MapEditBookViewModelToBook(EditBookViewModel viewModel)
+    {
+      var book = new Book()
+      {
+        Name = viewModel.Name,
+        YearPublished = viewModel.YearPublished,
+        TableOfContentsXml = TocConverter.HtmlToXml(viewModel.TableOfContentsHtml ?? string.Empty)
+      };
+
+      foreach (var authorInput in viewModel.Authors)
+      {
+        var author = new Author()
+        {
+          FirstName = authorInput.FirstName,
+          MiddleName = authorInput.MiddleName,
+          LastName = authorInput.LastName
+        };
+        book.Authors.Add(author);
+      }
+
+
+
+      return book;
+    }
+
+    private static async Task<Book> MapCreateBookViewModelToBook(CreateBookViewModel viewModel)
+    {
+      var book = new Book()
+      {
+        Name = viewModel.Name,
+        YearPublished = viewModel.YearPublished,
+        Authors = new List<Author>()
+      };
+
+      foreach (var authorInput in viewModel.Authors)
+      {
+        var author = new Author()
+        {
+          FirstName = authorInput.FirstName,
+          MiddleName = authorInput.MiddleName,
+          LastName = authorInput.LastName
+        };
+        book.Authors.Add(author);
+      }
+
+      if (viewModel.TocFile != null && viewModel.TocFile.Length > 0)
+      {
+        using var reader = new StreamReader(viewModel.TocFile.OpenReadStream());
+        book.TableOfContentsXml = await reader.ReadToEndAsync();
+      }
+
+      return book;
+    }
+
+    #endregion
   }
 }
