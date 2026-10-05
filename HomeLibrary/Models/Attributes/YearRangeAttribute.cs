@@ -17,7 +17,7 @@ namespace HomeLibrary.Models.Attributes
       if (value is int year)
       {
         int currentYear = DateTime.Now.Year;
-        if (year < _minYear || year >= currentYear)
+        if (year < _minYear || year > currentYear)
         {
           return new ValidationResult($"Год должен быть от {_minYear} до {currentYear}.");
         }

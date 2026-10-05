@@ -36,18 +36,7 @@ namespace HomeLibrary.Models.Repository
           }
       };
 
-      var authorsTable = new DataTable { Columns = { "FirstName", "LastName", "MiddleName" } };
-      if (book.Authors?.Any() == true)
-      {
-        foreach (var a in book.Authors)
-        {
-          authorsTable.Rows.Add(
-              a.FirstName,
-              a.LastName,
-              string.IsNullOrEmpty(a.MiddleName) ? (object)DBNull.Value : a.MiddleName
-          );
-        }
-      }
+      var authorsTable = CreateAuthorsTable(book);
 
       parameters.Add(new SqlParameter("@Authors", SqlDbType.Structured)
       {
@@ -55,11 +44,11 @@ namespace HomeLibrary.Models.Repository
         TypeName = "dbo.AuthorList"
       });
 
-      var bookId = (await _context.BookIdResults
+      var bookId = await _context.BookIdResults
           .FromSqlRaw("EXEC dbo.AddBook @Name, @YearPublished, @TableOfContentsXml, @Authors", parameters.ToArray())
           .AsAsyncEnumerable()
           .Select(x => x.BookId)
-          .FirstOrDefaultAsync());
+          .FirstOrDefaultAsync();
 
       book.Id = bookId;
       return await GetAsync(bookId);
@@ -73,18 +62,6 @@ namespace HomeLibrary.Models.Repository
           "EXEC dbo.DeleteBook @Id",
           new[] { param });
       return result > 1 ? true : false;
-    }
-
-    public async Task<IEnumerable<Book>> GetAllAsync()
-    {
-      var rows = await _context.Set<BookWithAuthorsRow>()
-        .FromSqlRaw("EXEC dbo.GetAllBooks")
-        .ToListAsync();
-
-      // Группируем плоский результат в книги с коллекцией авторов
-      var books = MapRowsToBooks(rows);
-
-      return books;
     }
 
     public async Task<IEnumerable<Book>> GetByAuthorOrNameAsync(string? searchString)
@@ -127,16 +104,7 @@ namespace HomeLibrary.Models.Repository
                   : Encoding.UTF8.GetBytes(book.TableOfContentsXml)
           }
       };
-
-      var authorsTable = new DataTable();
-      authorsTable.Columns.Add("MiddleName", typeof(string));
-      authorsTable.Columns.Add("FirstName", typeof(string));
-      authorsTable.Columns.Add("LastName", typeof(string));
-
-      foreach (var author in book.Authors)
-      {
-        authorsTable.Rows.Add(author.MiddleName, author.FirstName, author.LastName ?? string.Empty);
-      }
+      var authorsTable = CreateAuthorsTable(book);
 
       parameters.Add(new SqlParameter("@Authors", SqlDbType.Structured)
       {
@@ -147,6 +115,21 @@ namespace HomeLibrary.Models.Repository
       await _context.Database.ExecuteSqlRawAsync(
           "EXEC dbo.UpdateBook @Id, @Name, @YearPublished, @TableOfContentsXml, @Authors",
           parameters.ToArray());
+    }
+
+    private DataTable CreateAuthorsTable(Book book)
+    {
+      var authorsTable = new DataTable();
+      authorsTable.Columns.Add("MiddleName", typeof(string));
+      authorsTable.Columns.Add("FirstName", typeof(string));
+      authorsTable.Columns.Add("LastName", typeof(string));
+
+      foreach (var author in book.Authors)
+      {
+        authorsTable.Rows.Add(author.MiddleName, author.FirstName, author.LastName ?? string.Empty);
+      }
+
+      return authorsTable;
     }
 
     private List<Book> MapRowsToBooks(List<BookWithAuthorsRow> rows)

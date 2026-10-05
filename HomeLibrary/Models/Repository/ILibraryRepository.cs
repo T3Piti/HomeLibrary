@@ -6,7 +6,6 @@ namespace HomeLibrary.Models.Repository
 {
   public interface ILibraryRepository : IDisposable
   {
-    Task<IEnumerable<Book>> GetAllAsync();
     Task<IEnumerable<Book>> GetByAuthorOrNameAsync(string searchString);
     Task<Book> GetAsync(int id);
     Task<Book> AddAsync(Book book);

@@ -118,9 +118,11 @@ namespace HomeLibrary.Controllers
     {
       var book = new Book()
       {
+        Id = viewModel.Id,
         Name = viewModel.Name,
         YearPublished = viewModel.YearPublished,
-        TableOfContentsXml = TocConverter.HtmlToXml(viewModel.TableOfContentsHtml ?? string.Empty)
+        TableOfContentsXml = TocConverter.HtmlToXml(viewModel.TableOfContentsHtml ?? string.Empty),
+        Authors = new List<Author>()
       };
 
       foreach (var authorInput in viewModel.Authors)
